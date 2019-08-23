@@ -21,7 +21,7 @@ var cookieParser = require('cookie-parser')
 var express = require('express');
 var session = require('express-session')
 var minimist = require('minimist');
-var ws = require('ws');
+var WebSocket = require('ws');
 var kurento = require('kurento-client');
 var fs    = require('fs');
 var https = require('https');
@@ -72,22 +72,35 @@ var kurentoClient = null;
  */
 var asUrl = url.parse(argv.as_uri);
 var port = asUrl.port;
-var server = https.createServer(options,app).listen(port, function() {
+var server = https.createServer(options, app).listen(port, function() {
     console.log('Kurento Tutorial started');
     console.log('Open ' + url.format(asUrl) + ' with a WebRTC capable browser');
 });
 
-var wss = new ws.Server({
-    server : server,
-    path : '/'
-});
 
 /*
  * Management of WebSocket messages
  */
-wss.on('connection', function(ws) {
+
+const wss = new WebSocket.Server({ noServer: true });
+ 
+server.on('upgrade', (request, socket, head) => {
+  const pathname = url.parse(request.url).pathname;
+ 
+  if (pathname === '/magicmirror') {
+    wss.handleUpgrade(request, socket, head, function done(ws) {
+      wss.emit('connection', ws, request);
+    });
+  }else{
+    socket.destroy();
+  }
+});
+
+
+
+
+wss.on('connection', (ws,request) => {
     var sessionId = null;
-    var request = ws.upgradeReq;
     var response = {
         writeHead : {}
     };
